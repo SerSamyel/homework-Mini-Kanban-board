@@ -1,5 +1,38 @@
-# AI Dev Tools Zoomcamp homework 2
+# AI Dev Tools Zoomcamp homework 2 — Boardly
 
-Mini Kanban board — MVP: веб-приложение для одного пользователя с созданием задач и перетаскиванием их между колонками (To Do / In Progress / Done).
+**Boardly** — мини-канбан-доска: веб-приложение для одного пользователя с созданием задач и перетаскиванием их между колонками (To Do / In Progress / Done).
 
-Спецификация для разработки — в [`_docs/plan.md`](_docs/plan.md): технологический стек (FastAPI + SQLite backend, vanilla JS frontend — предложение), модель данных, API, пользовательские сценарии и критерии готовности.
+Спецификация — [`_docs/plan.md`](_docs/plan.md); контракт API — [`openapi.yaml`](openapi.yaml); инструкции для AI-агента — [`AGENTS.md`](AGENTS.md).
+
+## Запуск
+
+Backend (FastAPI + SQLite, порт 8000):
+
+```bash
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+Frontend (статика, порт 5500) — в отдельном терминале:
+
+```bash
+cd frontend
+python3 -m http.server 5500
+```
+
+Открыть http://localhost:5500.
+
+## Тесты
+
+```bash
+cd backend
+uv run pytest
+```
+
+## Структура
+
+- `frontend/` — HTML/CSS/vanilla JS, без сборки ([подробнее](frontend/README.md))
+- `backend/` — FastAPI + SQLAlchemy + SQLite, управление зависимостями через uv ([подробнее](backend/README.md))
+- `openapi.yaml` — контракт API между frontend и backend
+- `_docs/plan.md` — спецификация MVP

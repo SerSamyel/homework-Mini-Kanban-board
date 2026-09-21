@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# uv-managed virtual environment (uv.lock itself IS committed)
+backend/.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend dev database (SQLite file, recreated + reseeded on first run)
+backend/kanban.db

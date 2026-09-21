@@ -1,0 +1,349 @@
+openapi: 3.0.3
+info:
+  title: Boardly API
+  version: "1.0.0"
+  description: >
+    Backend contract for Boardly (mini kanban board) — implemented by
+    frontend/js/api.js on the client and backend/app on the server.
+    Single-user MVP: no accounts, no login, no per-request authentication on
+    any endpoint. Columns are fixed and seeded server-side ("To Do", "In
+    Progress", "Done"); there is no endpoint to create, rename or delete
+    columns in this version.
+servers:
+  - url: /api
+
+security: []
+
+tags:
+  - name: board
+    description: Read-only aggregate view of the board, and the fixed column list
+  - name: tasks
+    description: Task CRUD, including moving a task between columns
+
+paths:
+  /board:
+    get:
+      operationId: getBoard
+      tags: [board]
+      summary: Get the full board (columns with their tasks)
+      description: >
+        Used for the initial page load. Returns all three columns, each with
+        its tasks sorted by position. Auth: none — public endpoint.
+      security: []
+      responses:
+        "200":
+          description: Current board state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+              example:
+                columns:
+                  - id: 1
+                    name: To Do
+                    order: 0
+                    tasks:
+                      - id: 4
+                        title: Подключить реальный backend
+                        description: ""
+                        column_id: 1
+                        position: 0
+                        created_at: "2026-09-21T12:00:00Z"
+                        updated_at: "2026-09-21T12:00:00Z"
+                  - id: 2
+                    name: In Progress
+                    order: 1
+                    tasks: []
+                  - id: 3
+                    name: Done
+                    order: 2
+                    tasks: []
+
+  /columns:
+    get:
+      operationId: listColumns
+      tags: [board]
+      summary: List columns, without their tasks
+      description: >
+        Utility endpoint — columns are fixed/seeded, not user-editable in
+        this MVP. Auth: none — public endpoint.
+      security: []
+      responses:
+        "200":
+          description: The three fixed columns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ColumnSummary"
+              example:
+                - id: 1
+                  name: To Do
+                  order: 0
+                - id: 2
+                  name: In Progress
+                  order: 1
+                - id: 3
+                  name: Done
+                  order: 2
+
+  /tasks:
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      description: >
+        New task is appended to the end of the target column (server assigns
+        `position`). Auth: none — public endpoint.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCreateRequest"
+            example:
+              title: Написать тесты
+              description: ""
+              column_id: 1
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "422":
+          description: Validation error (e.g. missing/empty title, unknown column_id)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+
+  /tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task id
+
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a single task
+      description: "Auth: none — public endpoint."
+      security: []
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task, or move it to another column / position
+      description: >
+        Partial update — send only the fields that change. Dragging a card
+        to another column (or to a new spot in the same column) is expressed
+        as a PATCH with `column_id` and/or `position`; the frontend also
+        re-sends `position` for every sibling task in the affected column(s)
+        right after a drop, to keep ordering consistent.
+        Auth: none — public endpoint.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdateRequest"
+            example:
+              column_id: 2
+              position: 0
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "422":
+          description: Validation error (e.g. empty title, unknown column_id)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      description: "Auth: none — public endpoint."
+      security: []
+      responses:
+        "204":
+          description: Task deleted
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+components:
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - column_id
+        - position
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          example: 4
+        title:
+          type: string
+          maxLength: 200
+          example: Подключить реальный backend
+        description:
+          type: string
+          example: ""
+        column_id:
+          type: integer
+          example: 1
+        position:
+          type: integer
+          minimum: 0
+          description: Order of the task within its column (0-based)
+          example: 0
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Column:
+      type: object
+      required: [id, name, order, tasks]
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: To Do
+        order:
+          type: integer
+          description: Position of the column on the board (0-based)
+          example: 0
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+
+    ColumnSummary:
+      type: object
+      required: [id, name, order]
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: To Do
+        order:
+          type: integer
+          example: 0
+
+    Board:
+      type: object
+      required: [columns]
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/Column"
+
+    TaskCreateRequest:
+      type: object
+      required: [title, column_id]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Написать тесты
+        description:
+          type: string
+          default: ""
+          example: ""
+        column_id:
+          type: integer
+          example: 1
+
+    TaskUpdateRequest:
+      type: object
+      description: All fields optional — send only what changed.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        column_id:
+          type: integer
+        position:
+          type: integer
+          minimum: 0
+      minProperties: 1
+
+    ErrorDetail:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          example: "Task 999 not found"
+
+    HTTPValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: integer
+              msg:
+                type: string
+              type:
+                type: string
